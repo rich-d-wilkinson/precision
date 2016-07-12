@@ -1,0 +1,14 @@
+Package: precision
+Type: Package
+Title: Statistical methods for detecting non-binomial sex allocation when developmental mortality operates
+Version: 1.0
+Date: 2013-10-07
+Author: Richard Wilkinson
+Maintainer: Richard Wilkinson <r.d.wilkinson@nottingham.ac.uk>
+Description: Tests for non-binomial data, particularly in the case where the data have been subject to mortality 
+  (equivalent to being left out at random). Implements the Bayesian model selection proceedure given in Wilkinson et al. 2013
+  and the James and Meelis tests. Also calculates the R statistic.
+License: GPL-2
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

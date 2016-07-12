@@ -1,0 +1,18 @@
+---
+title: "Introduction to the precision R package"
+author: "Richard Wilkinson"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Installation
+
+The easiest installation is to use devtools to install directly from github.
+
+```{r eval=FALSE}
+devtools::install_github('rich-d-wilkinson/precision')
+```

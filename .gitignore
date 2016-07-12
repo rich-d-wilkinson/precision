@@ -1,0 +1,8 @@
+inst/doc
+precision.Rproj
+*~
+*.o
+*.so
+.RData
+.Rhistory
+.Rproj.user
