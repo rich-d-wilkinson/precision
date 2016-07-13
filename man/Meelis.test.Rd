@@ -28,8 +28,11 @@ James.test(experiment, TwoSided = FALSE)
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
-\item{U}{The U test statistic as described in Wilkinson et al. 2013.}
-\item{p.val}{The p-value corresponding to the U statistic and whether the test is one or two-sided.}
+\item{vals}{Intermediate values used in the calculation of the other higher-level statistics}
+\item{R.av}{The descriptive R ratio which is the ratio of empirical and expected variance}
+\item{s2}{McCullagh's $s^2$ statistic}
+\item{U.av}{The U test statistic as described in Wilkinson et al. 2013.}
+\item{p.av}{The p-value corresponding to the U statistic, calculated as part of either a one or two-sided calculation depending on the option specified.}
 \item{exp.table}{The experimental data organised into table format.}
 %%  ~Describe the value returned
 %%  If it is a LIST, use

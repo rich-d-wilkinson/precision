@@ -11,8 +11,31 @@ vignette: >
 
 ## Installation
 
-The easiest installation is to use devtools to install directly from github.
+The easiest way to  install is to use devtools to install directly from github.
 
 ```{r eval=FALSE}
 devtools::install_github('rich-d-wilkinson/precision')
 ```
+
+Alternatively, download the package from [https://github.com/rich-d-wilkinson/precision](https://github.com/rich-d-wilkinson/precision).
+
+## Data 
+
+All of the datasets used in the paper are included in the R package. 
+
+```{r}
+library(precision)
+data(package='precision')$results[,c('Item')]
+```
+
+For example, the C. florus secondary dataset is
+
+```{r}
+data(CflorusSecondary)
+CflorusSecondary
+```
+
+## Standard Analyses
+
+
+
