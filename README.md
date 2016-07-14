@@ -26,7 +26,7 @@ data(CflorusSecondary)
 tail(CflorusSecondary)
 ```
 
-To use your own dataset, specify a $C \times 2$ matrix, with the first column containing the clutch size, and the second the number of males. It is necessary to label your columns as $n$ and $m$.
+To use your own dataset, specify a C x 2 matrix, with the first column containing the clutch size, and the second the number of males. It is necessary to label your columns as n and m.
 
 ```
 my_data <- matrix(c(3,2,4,3,5,1,6,2,7,1,7,1), nc=2, byrow=TRUE)
@@ -36,4 +36,4 @@ my_data
 
 ## Tutorial
 
-See the package vignette for details on how to run the R code
+See the package vignette for details on how to run the R code.
