@@ -9,6 +9,10 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
 ## Installation
 
 The easiest way to  install is to use devtools to install directly from github.
@@ -17,7 +21,7 @@ The easiest way to  install is to use devtools to install directly from github.
 devtools::install_github('rich-d-wilkinson/precision')
 ```
 
-Alternatively, download the package from [https://github.com/rich-d-wilkinson/precision](https://github.com/rich-d-wilkinson/precision).
+Alternatively, download the package from [https://github.com/rich-d-wilkinson/precision](https://github.com/rich-d-wilkinson/precision) and install manually.
 
 ## Data 
 
@@ -32,10 +36,217 @@ For example, the C. florus secondary dataset is
 
 ```{r}
 data(CflorusSecondary)
-CflorusSecondary
+tail(CflorusSecondary)
+```
+
+To use your own dataset, specify a $C \times 2$ matrix, with the first column containing the clutch size, and the second the number of males. It is necessary to label your columns as $n$ and $m$.
+
+```{r, eval=FALSE}
+my_data <- matrix(c(3,2,4,3,5,1,6,2,7,1,7,1), nc=2, byrow=TRUE)
+colnames(my_data) <- c('n', 'm')
+my_data
 ```
 
 ## Standard Analyses
 
+The pre-existing analysis methods are all built into the R functions `Meelis.test` and `James.test`. For example,
+
+```{r}
+(meelis.out <- Meelis.test(CflorusSecondary, TwoSided = TRUE))
+(james.out <- James.test(CflorusSecondary, TwoSided = TRUE))
+```
+
+From this we can see the test statistics for the Meelis and James' tests, as well as the corresponding p-values. The value of R and McCullagh's $s^2$ are included in the output from `Meelis.test`.
+
+
+# Bayesian analysis 
+
+The Bayesian analysis consists of two parts. The first is finding the posterior distributions of the parameters. The second optional stage is to go on to estimate the Bayes factors. These calculations require us to run an MCMC sampler, which can be computationally intensive depending on how long it is run for. The longer it is run, the more accurate the calculations are likely to be.
+
+The calculations all require the specification of prior distributions. The family of distributions used for each parameter is hard coded into the package, but the user is free to choose the hyper-parameters that define the mean and variance of the distribution. The priors used are 
+
+$$\begin{aligned}
+p &\sim \operatorname{Beta}(a_p, b_p)\\
+\psi & \sim N(\mu, \sigma^2)\\
+ \lambda &\sim \operatorname{Gamma}(\alpha,\beta)\\
+d &\sim \operatorname{Beta}(a_d, b_d)
+\end{aligned}
+$$
+
+We specify all of these through a list. 
+
+```{r}
+hyper<-list()
+```
+
+The elements of the list must use the naming convention used below. 
+A reasonable default choice of prior for $p$ and $\psi$ (see paper for the rationale) is to use $p\sim U[0,1]$ and $\psi \sim N(0,1)$, which we can set as follows:
+
+```{r}
+hyper$a.p <-  1
+hyper$b.p <-  1
+hyper$mu.psi <- 0  
+hyper$sd.psi <- 1
+```
+
+For C. florus, previous work has reported a mortality rate of 57\% and an average clutch size of 7.4. Some experimentation with the values, and recalling that the mean of a Gamma$(\alpha, \beta)$ distribution is $\alpha/\beta$ and the variance is $\alpha/\beta^2$, led us to use 
+```{r}
+hyper$a.m <- 11
+hyper$b.m <-  10
+
+hyper$alpha.lambda <- 16
+hyper$beta.lambda  <- 1
+```
+
+It is a good idea to plot the prior distributions, to check that they agree with prior beliefs. This can be done as follows:
+
+```{r, fig.width=7, fig.height=7, echo=TRUE, message=FALSE, warning=FALSE}
+plot.prior(hyper=hyper, show=TRUE, family="multbinom")
+```
+
+
+
+## Posteriors
+
+To calculate the posterior distribution, we have to run an MCMC sampler for a larger number of iterations. The longer we run the sampler, the better the posterior estimates will be. We would suggest a minimum  of $10^5$ iterations to get a reasonable estimate of the posteriors, and that $10^6$ iterations should be more than sufficient. If Bayes factors are to be estimated, we would err towards the higher end of that range. The run time will depend upon both the number of MCMC iterations used, and the number of clutches in the dataset (as the MCMC algorithm samples the unobserved primary counts). To do $10^6$ iterations with the C. florus dataset, you should expect to wait about an hour, depending on processor speed, for each set of MCMC results.
+
+```{r}
+nbatch <- 1*10^6
+```
+
+
+
+
+###### Binomial Model
+
+The proceedure for fitting each of the three models (binomial, multiplicative binomial, and double binomial) is the same, and each can be done independently (on different cores if possible). To begin with, we choose a start point for the MCMC chain. The chains mix well and so a random value chosen from the prior works well here. It is necessary to label the parameters in the parameter matrix
+
+```{r, echo=FALSE}
+load('../../../../Results/ModelSelection/Cflorus/Secondary/C_florusSecondaryFieldUtrecht2binomialchibresults.rda')
+```
+
+```{r, eval=FALSE}
+b.theta0 <-c("lambda"=10, "p"=0.1, "mort"=0.5) 
+```
+
+To run the code, we then just call the `MCMCWithinGibbs` function. Note that you can specify whether to keep the imputed missing primary values (the $N$ and $M$ values).
+
+```{r, eval=FALSE}
+b.mcmc.out <- MCMCWithinGibbs(theta0=b.theta0,  data=CflorusSecondary, hyper=hyper, nbatch=nbatch, family="binomial", keepNM=TRUE)
+```
+
+Finally, it can often be a good idea to thin the MCMC output (by only keeping every 10th value for example) and to discard an initial 'burn-in' period.
+
+```{r, eval=FALSE}
+b.mcmc.out.t  <- ThinChain(b.mcmc.out, thinby=10, burnin=10^5)
+```
+
+The trace plots are useful to ensure that the chains have converged, and that they are mixing well. 
+
+```{r, fig.width=7}
+plot.trace(chain=b.mcmc.out.t$chain, show=T, family="binomial")
+```
+
+These all look fine, and so we can plot the posteriors and draw conclusions:
+
+```{r, fig.width=7}
+plot.posterior(chain=b.mcmc.out.t$chain, hyper=hyper, show=T, family="binomial")
+```
+
+
+###### Multiplicative and Double Binomial Models
+
+The process for fitting the other models is very similar. However now we are forced to use Metropolis-Hastings as well as a Gibbs sampler, and so we need to specify the 
+ Metropolis-Hastings random walk step size.
+```{r}
+m.step.size<-c('p.logit'=0.3, 'psi'=0.2) 
+```
+
+Note again that it is necessary to name the elements in this vector to avoid ambiguity. The rest of the code is the same as for the binomial model:
+
+
+
+```{r, eval=FALSE}
+m.theta0 <-c('lambda'=10, 'p'=0.1,'psi'=0, 'mort'=0.1) 
+m.mcmc.out <- MCMCWithinGibbs( theta0=m.theta0,  data=GlegneriSecondary, hyper=hyper, nbatch=nbatch,  family="multbinom", step.size=m.step.size, keepNM=TRUE)
+m.mcmc.out.t  <- ThinChain(m.mcmc.out, thinby=10, burnin=10^5)
+```
+
+```{r, echo=FALSE}
+load('../../../../Results/ModelSelection/Cflorus/Secondary/C_florusSecondaryFieldUtrecht2multmcmcresults.rda')
+m.mcmc.out.t  <- m.mcmc.full#ThinChain(m.mcmc.full, thinby=1, burnin=10^4)
+```
+
+```{r, fig.width=7, fig.height=7}
+plot.posterior(chain=m.mcmc.out.t$chain, hyper=hyper, show=T,   family="multbinom")
+plot.trace(chain=m.mcmc.out.t$chain, show=T, family="multbinom")
+```
+
+
+
+
+
+```{r, eval=FALSE}
+d.step.size<-c('p.logit'=0.3, 'psi'=0.2) 
+d.theta0 <-c('lambda'=10, 'p'=0.1,'psi'=0, 'mort'=0.1)
+d.mcmc.out <- MCMCWithinGibbs( theta0=d.theta0,  data=GlegneriSecondary, hyper=hyper, nbatch=nbatch,  family="doublebinom", step.size=d.step.size, keepNM=TRUE)
+d.mcmc.out.t  <- ThinChain(d.mcmc.full, thinby=1, burnin=10^4)
+```
+
+```{r, echo=FALSE}
+load('../../../../Results/ModelSelection/Cflorus/Secondary/C_florusSecondaryFieldUtrecht2doublemcmcresults.rda')
+d.mcmc.out.t  <- ThinChain(d.mcmc.full, thinby=5, burnin=10^5)
+d.mcmc.out.t = d.mcmc.full
+```
+
+```{r, fig.width=7, fig.height=7}
+plot.posterior(chain=d.mcmc.out.t$chain, hyper=hyper, show=TRUE, family="doublebinom")
+plot.trace(chain=d.mcmc.out.t$chain, show=TRUE, family="doublebinom")
+```
+
+
+
+## Bayes factors
+
+The posterior distributions give much of the information about how much under-dispersion there is in the data. However, often we will want to also calculate the Bayes factor to see whether the data support one model over the others. To do this, we have to run additional MCMC chains fixing some of the parameters (and so this step is also computationally costly).
+
+
+
+```{r, echo=FALSE}
+load('../../../../Results/ModelSelection/Cflorus/Secondary/C_florusSecondaryFieldUtrecht2binomialchibresults.rda')
+load('../../../../Results/ModelSelection/Cflorus/Secondary/C_florusSecondaryFieldUtrecht2multchibresults.rda')
+load('../../../../Results/ModelSelection/Cflorus/Secondary/C_florusSecondaryFieldUtrecht2doublechibresults.rda')
+```
+
+
+
+```{r, eval=FALSE}
+b.log.evidence <- CalculateEvidence(mcmc.out=b.mcmc.out.t, data=GlegneriSecondary,  hyper=hyper, family="binomial")
+m.log.evidence <- CalculateEvidence(mcmc.out=m.mcmc.out.t, data=GlegneriSecondary,  hyper=hyper, family="multbinom" nbatch=nbatch, step.size=m.step.size)
+d.log.evidence <- CalculateEvidence(mcmc.out=d.mcmc.out.t, data=GlegneriSecondary,  hyper=hyper, family="doublebinom", sd=FALSE, nbatch=nbatch, step.size=d.step.size)
+```
+
+Finally, we can put all the information together in a nice format as follows:
+
+```{r, echo=FALSE}
+meelis.out <- Meelis.test(CflorusSecondary, TwoSided = TRUE)
+james.out <- James.test(CflorusSecondary, TwoSided = TRUE)
+```
+
+```{r}
+log.evidence <- c(b.log.evidence, m.log.evidence, d.log.evidence)
+BF<-CalcBF(log.evidence)
+chib.out <- list(BF=BF$BF, probH0 = BF$probH0 , 
+                 ProbPosPsi = c("multbinom"=sum((m.mcmc.out.t$chain[,"psi"]>0))/length(m.mcmc.out.t$chain[,"psi"]), "doublebinom"=sum((d.mcmc.out.t$chain[,"psi"]>0))/length(d.mcmc.out.t$chain[,"psi"])),
+                 log.BF=log(BF$BF), log.evidence=log.evidence, 
+                 R= c("R"=meelis.out$R.av),
+                 s2 = c(meelis.out$s2),
+                 meelis = c("U"=meelis.out$U.av, "p"=meelis.out$p.av,  "conclusion"=ifelse(meelis.out$p.av<0.05, "RejectH0", "AcceptH0")),
+                 james = c("U"=james.out$U, "p"=james.out$p.val,  "conclusion" = ifelse(james.out$p.val<0.05, "RejectH0", "AcceptH0") ) )   
+print(chib.out)
+```
+
+
+From this we can read off the Bayes factors (which show that the binomial model is slightly favoured here), the posterior probabilities of each model, the posterior probability that $\psi$ is positive (which is only 0.075 and 0.090 for the multiplicative and double binomial models respectively), as well as the other descriptive statistics previously used.
 
 

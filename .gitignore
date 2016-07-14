@@ -6,3 +6,5 @@ precision.Rproj
 .RData
 .Rhistory
 .Rproj.user
+vignettes/Tutorial_cache
+vignettes/Tutorial_files
